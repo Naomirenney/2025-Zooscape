@@ -32,3 +32,5 @@ ReferenceBot/
 PlayableBot/
 .config/
 ZooscapeTests/
+*.bat
+*.sh

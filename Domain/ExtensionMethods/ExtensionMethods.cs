@@ -21,4 +21,9 @@ public static class ExtensionMethods
             _ => throw new ArgumentException("Invalid enum value", nameof(action)),
         };
     }
+
+    public static char ToChar(this CellContents contents)
+    {
+        return (char)('0' + (int)contents);
+    }
 }

@@ -163,7 +163,11 @@ public class WorldTests
 
         var settings = new GameSettings { WorldMap = inputMap };
         var options = Options.Create(settings);
-        var gameState = new GameStateService(options, NullLogger<GameStateService>.Instance);
+        var gameState = new GameStateService(
+            options,
+            NullLogger<GameStateService>.Instance,
+            new GlobalSeededRandomizer(1234)
+        );
 
         foreach (var animalId in TestUtils.GenerateAnimalIds())
             gameState.AddAnimal(animalId, "");
@@ -199,7 +203,11 @@ public class WorldTests
 
         var settings = new GameSettings { WorldMap = inputMap };
         var options = Options.Create(settings);
-        var gameState = new GameStateService(options, NullLogger<GameStateService>.Instance);
+        var gameState = new GameStateService(
+            options,
+            NullLogger<GameStateService>.Instance,
+            new GlobalSeededRandomizer(1234)
+        );
 
         var animal = gameState.AddAnimal(Guid.NewGuid(), "").Value!;
         gameState.AddAnimal(Guid.NewGuid(), "");

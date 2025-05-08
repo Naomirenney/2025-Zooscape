@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Zooscape.Application.Services;
+using Zooscape.Domain.Enums;
 using Zooscape.Domain.Models;
 using Zooscape.Infrastructure.CloudIntegration.Services;
 using Zooscape.Infrastructure.SignalRHub.Messages;
@@ -115,6 +116,16 @@ public class BotHub : Hub
             _logger.LogError(
                 "Command received from unregistered connectionId ({connectionId})",
                 connectionId
+            );
+            return;
+        }
+
+        if (!Enum.IsDefined(typeof(BotAction), botCommand.Action))
+        {
+            _logger.LogError(
+                "Invalid command ({action}) received from bot ({botNickname}).",
+                botCommand.Action,
+                bot.Nickname
             );
             return;
         }

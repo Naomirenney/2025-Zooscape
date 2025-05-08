@@ -1,6 +1,6 @@
 ﻿namespace Zooscape.Infrastructure.S3Logger;
 
-public interface IStreamingFileLogger
+public interface IStreamingFileDiffLogger
 {
     void LogState(object state);
 

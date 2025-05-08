@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Domain.Utilities;
+namespace Zooscape.Domain.Utilities;
 
 /// <summary>
 /// A wrapper around the System.Random class allowing injection as a singleton and containing additional distributed
@@ -10,6 +10,8 @@ public class GlobalSeededRandomizer
 {
     private readonly Random _random;
 
+    public int Seed;
+
     /// <summary>Initializes a new instance of the GlobalSeededRandomizer class, using the specified seed value.</summary>
     /// <param name="Seed">
     /// A number used to calculate a starting value for the pseudo-random number sequence. If a negative number
@@ -17,6 +19,7 @@ public class GlobalSeededRandomizer
     /// </param>
     public GlobalSeededRandomizer(int seed)
     {
+        Seed = seed;
         _random = new Random(seed);
     }
 

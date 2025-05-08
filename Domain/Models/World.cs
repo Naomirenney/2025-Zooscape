@@ -2,7 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using Domain.Utilities;
 using Zooscape.Domain.Enums;
 using Zooscape.Domain.ExtensionMethods;
 using Zooscape.Domain.Interfaces;

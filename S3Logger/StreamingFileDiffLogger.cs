@@ -4,12 +4,12 @@ using Serilog.Sinks.File.GZip;
 
 namespace Zooscape.Infrastructure.S3Logger;
 
-public class StreamingFileLogger : IStreamingFileLogger
+public class StreamingFileDiffLogger : IStreamingFileDiffLogger
 {
     private readonly ILogger _logger;
     private readonly bool _enabled;
 
-    public StreamingFileLogger(bool enabled, string logDir, string logFileName)
+    public StreamingFileDiffLogger(bool enabled, string logDir, string logFileName)
     {
         _enabled = enabled;
 

@@ -1,9 +1,9 @@
 using System.Text.Json;
-using S3Logger.Utilities;
 using Zooscape.Application.Events;
+using Zooscape.Domain.Utilities;
 using Zooscape.Infrastructure.SignalRHub.Models;
 
-namespace S3Logger.Events;
+namespace Zooscape.Infrastructure.S3Logger.Events;
 
 public class LogStateEventDispatcher(IStreamingFileLogger logger) : IEventDispatcher
 {
@@ -12,8 +12,15 @@ public class LogStateEventDispatcher(IStreamingFileLogger logger) : IEventDispat
     {
         if (gameEvent is GameStateEvent gameStateEvent)
         {
-            var state = new GameState(gameStateEvent.GameState);
-            logger.LogState(JsonSerializer.Serialize(state));
+            Helpers.TrackExecutionTime(
+                "LogStateEventDispatcher.Dispatch",
+                () =>
+                {
+                    var state = new GameState(gameStateEvent.GameState);
+                    logger.LogState(JsonSerializer.Serialize(state));
+                },
+                out var _
+            );
         }
         else if (gameEvent is CloseAndFlushLogsEvent)
         {

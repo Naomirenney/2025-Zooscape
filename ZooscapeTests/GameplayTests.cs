@@ -16,6 +16,7 @@ using Zooscape.Application.Events;
 using Zooscape.Application.Services;
 using Zooscape.Domain.Enums;
 using Zooscape.Domain.Models;
+using Zooscape.Domain.Utilities;
 using Zooscape.Domain.ValueObjects;
 
 namespace ZooscapeTests;
@@ -34,7 +35,7 @@ public class GameplayTests
     public async Task GameplayTest(TestData testData)
     {
         // Arrange
-        var settings = new GameSettings
+        var gameSettings = new GameSettings
         {
             WorldMap = $"string:{testData.Input.Map}",
             TickDuration = 10,
@@ -44,8 +45,22 @@ public class GameplayTests
             ScoreLossPercentage = 50,
         };
 
-        var options = Options.Create(settings);
-        var gameState = new GameStateService(options, NullLogger<GameStateService>.Instance);
+        var logSettings = new GameLogsConfiguration
+        {
+            PushLogsToS3 = false,
+            FullLogsEnabled = false,
+            DiffLogsEnabled = false,
+        };
+
+        var gameSettingsOptions = Options.Create(gameSettings);
+        var logSettingsOptions = Options.Create(logSettings);
+        var globalSeededRandomiser = new GlobalSeededRandomizer(1234);
+
+        var gameState = new GameStateService(
+            gameSettingsOptions,
+            NullLogger<GameStateService>.Instance,
+            new GlobalSeededRandomizer(1234)
+        );
 
         foreach (var botId in testData.Input.AnimalIds)
         {
@@ -59,8 +74,10 @@ public class GameplayTests
 
         var workerService = new WorkerService(
             logger: NullLogger<WorkerService>.Instance,
-            options: options,
-            zookeeperService: new ZookeeperService(options),
+            gameSettingsOptions: gameSettingsOptions,
+            gameLogsConfigOptions: logSettingsOptions,
+            rng: new GlobalSeededRandomizer(123),
+            zookeeperService: new ZookeeperService(gameSettingsOptions),
             gameStateService: gameState,
             signalREventDispatcher: new MockSignalREventDispatcher(t =>
             {
@@ -81,6 +98,7 @@ public class GameplayTests
             }),
             cloudEventDispatcher: new MockCloudEventDispatcher(),
             logStateEventDispatcher: new MockLogStateEventDisptcher(),
+            logDiffStateEventDispatcher: new MockLogStateEventDisptcher(),
             applicationLifetime: new MockApplicationLifetime()
         );
 

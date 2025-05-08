@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -6,23 +7,25 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using S3Logger;
-using S3Logger.Events;
-using S3Logger.Utilities;
 using Serilog;
 using Serilog.Extensions.Logging;
-using Serilog.Sinks.File.GZip;
 using Zooscape.Application;
 using Zooscape.Application.Config;
 using Zooscape.Application.Events;
 using Zooscape.Application.Services;
+using Zooscape.Domain.Utilities;
 using Zooscape.Infrastructure.CloudIntegration.Enums;
 using Zooscape.Infrastructure.CloudIntegration.Events;
 using Zooscape.Infrastructure.CloudIntegration.Models;
 using Zooscape.Infrastructure.CloudIntegration.Services;
+using Zooscape.Infrastructure.S3Logger;
+using Zooscape.Infrastructure.S3Logger.Events;
+using Zooscape.Infrastructure.S3Logger.Utilities;
 using Zooscape.Infrastructure.SignalRHub.Config;
 using Zooscape.Infrastructure.SignalRHub.Events;
 using Zooscape.Infrastructure.SignalRHub.Hubs;
+
+CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 
 var configuration = new ConfigurationBuilder()
     .AddJsonFile("appsettings.json")
@@ -54,6 +57,12 @@ try
         .ConfigureServices(
             (context, services) =>
             {
+                var seed = context.Configuration.GetSection("GameSettings").GetValue<int>("Seed");
+                if (seed <= 0)
+                    seed = new Random().Next();
+
+                services.AddSingleton(new GlobalSeededRandomizer(seed));
+
                 // Cloud Integration
                 services.AddSingleton<ICloudIntegrationService>(cloudIntegrationService);
 
@@ -71,20 +80,39 @@ try
 
                 services.Configure<GameSettings>(context.Configuration.GetSection("GameSettings"));
 
-                services.Configure<S3Configuration>(
-                    context.Configuration.GetSection("S3Configuration")
+                services.Configure<GameLogsConfiguration>(
+                    context.Configuration.GetSection("GameLogsConfiguration")
                 );
 
                 services.AddKeyedSingleton<IEventDispatcher, SignalREventDispatcher>("signalr");
                 services.AddKeyedSingleton<IEventDispatcher, CloudEventDispatcher>("cloud");
                 services.AddKeyedSingleton<IEventDispatcher, LogStateEventDispatcher>("logState");
+                services.AddKeyedSingleton<IEventDispatcher, LogDiffStateEventDispatcher>(
+                    "logDiffState"
+                );
 
                 S3.LogDirectory =
                     Environment.GetEnvironmentVariable("LOG_DIR")
                     ?? Path.Combine(AppContext.BaseDirectory, "logs");
 
                 services.AddSingleton<IStreamingFileLogger>(
-                    new StreamingFileLogger(S3.LogDirectory, "gameLogs.log")
+                    new StreamingFileLogger(
+                        context
+                            .Configuration.GetSection("GameLogsConfiguration")
+                            .GetValue<bool>("FullLogsEnabled"),
+                        S3.LogDirectory,
+                        "gameLogs.log"
+                    )
+                );
+
+                services.AddSingleton<IStreamingFileDiffLogger>(
+                    new StreamingFileDiffLogger(
+                        context
+                            .Configuration.GetSection("GameLogsConfiguration")
+                            .GetValue<bool>("DiffLogsEnabled"),
+                        S3.LogDirectory,
+                        "gameDiffLogs.log"
+                    )
                 );
 
                 services.AddSingleton<IZookeeperService, ZookeeperService>();

@@ -1,13 +1,14 @@
 ﻿using Zooscape.Application.Services;
 using Zooscape.Domain.Enums;
+using Zooscape.Infrastructure.SignalRHub.Models;
 
-namespace Zooscape.Infrastructure.SignalRHub.Models;
+namespace Zooscape.Infrastructure.S3Logger.Models;
 
 public class GameState
 {
     public DateTime TimeStamp { get; set; }
     public int Tick { get; set; }
-    public List<Cell> Cells { get; set; }
+    public CellContents[,] Cells { get; set; }
     public List<Animal> Animals { get; set; }
     public List<Zookeeper> Zookeepers { get; set; }
 
@@ -15,25 +16,7 @@ public class GameState
     {
         TimeStamp = DateTime.UtcNow;
         Tick = gameState.TickCounter;
-        Cells = gameState
-            .World.Cells.OfType<CellContents>()
-            .SelectMany(
-                (_, index) =>
-                {
-                    int x = index / gameState.World.Cells.GetLength(1);
-                    int y = index % gameState.World.Cells.GetLength(1);
-                    return new[]
-                    {
-                        new Cell()
-                        {
-                            X = x,
-                            Y = y,
-                            Content = gameState.World.Cells[x, y],
-                        },
-                    };
-                }
-            )
-            .ToList();
+        Cells = gameState.World.Cells;
 
         Animals = gameState
             .Animals.Values.Select(a => new Animal()

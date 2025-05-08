@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Domain.Utilities;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -12,6 +11,7 @@ using Zooscape.Domain.Enums;
 using Zooscape.Domain.ExtensionMethods;
 using Zooscape.Domain.Interfaces;
 using Zooscape.Domain.Models;
+using Zooscape.Domain.Utilities;
 
 namespace ZooscapeTests;
 
@@ -31,7 +31,11 @@ public class ZookeeperTests
 
         _testOutputHelper = testOutputHelper;
         _zookeeperService = new ZookeeperService(options);
-        _gameStateService = new GameStateService(options, NullLogger<GameStateService>.Instance);
+        _gameStateService = new GameStateService(
+            options,
+            NullLogger<GameStateService>.Instance,
+            new GlobalSeededRandomizer(1234)
+        );
 
         _gameStateService.AddZookeeper();
 

@@ -6,12 +6,12 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Zooscape.Application.Config;
-using Zooscape.Domain.Enums;
 using Zooscape.Domain.ExtensionMethods;
 using Zooscape.Domain.Interfaces;
 using Zooscape.Domain.Models;
 using Zooscape.Domain.Utilities;
 using Zooscape.Domain.ValueObjects;
+using Zooscape.MapGenerator;
 
 namespace Zooscape.Application.Services;
 
@@ -29,7 +29,11 @@ public class GameStateService : IGameStateService
     public bool IsReady => _world.IsReady;
     public int TickCounter { get; set; }
 
-    public GameStateService(IOptions<GameSettings> options, ILogger<GameStateService> logger)
+    public GameStateService(
+        IOptions<GameSettings> options,
+        ILogger<GameStateService> logger,
+        GlobalSeededRandomizer randomizer
+    )
     {
         _logger = logger;
         _gameSettings = options.Value;
@@ -39,19 +43,65 @@ public class GameStateService : IGameStateService
         {
             "file" => File.ReadAllText(mapConfig[1]),
             "string" => mapConfig[1],
+            "generate" => GenerateMap(mapConfig[1], randomizer.Next()),
             _ => throw new ArgumentException(
                 "Error reading world map",
                 nameof(options.Value.WorldMap)
             ),
         };
 
-        // Seed all empty cells with pellets
-        mapString = mapString.Replace(
-            ((int)CellContents.Empty).ToString()[0],
-            ((int)CellContents.Pellet).ToString()[0]
+        _world = new World(mapString, _gameSettings.NumberOfBots, _gameSettings.CommandQueueSize);
+    }
+
+    private static String GenerateMap(string values, int seed)
+    {
+        var parts = values.Split('|');
+        if (parts.Length < 4)
+        {
+            throw new ArgumentException($"Invalid generator format: {values}", nameof(values));
+        }
+        if (seed == 0)
+        {
+            throw new ArgumentException($"Invalid seed: {seed}", nameof(seed));
+        }
+
+        int size;
+        int teleports;
+        double smoothness;
+        double openness;
+
+        try
+        {
+            size = int.Parse(parts[0]);
+            teleports = int.Parse(parts[1]);
+            smoothness = double.Parse(parts[2]);
+            openness = double.Parse(parts[3]);
+        }
+        catch (FormatException exception)
+        {
+            throw new ArgumentException(
+                $"Invalid generator format, non number value given: {values}",
+                nameof(values),
+                exception
+            );
+        }
+        if (int.IsEvenInteger(size))
+        {
+            throw new ArgumentException(
+                $"Invalid generator format, given size ({size}) is not odd.",
+                nameof(values)
+            );
+        }
+
+        var map = new Map(
+            size: size,
+            smoothness: smoothness,
+            openness: openness,
+            teleports: teleports,
+            seed: seed
         );
 
-        _world = new World(mapString, _gameSettings.NumberOfBots, _gameSettings.CommandQueueSize);
+        return map.ToString();
     }
 
     public Result<IAnimal> AddAnimal(Guid botId, string nickname)

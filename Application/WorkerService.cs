@@ -15,6 +15,7 @@ using Zooscape.Domain.Enums;
 using Zooscape.Domain.ExtensionMethods;
 using Zooscape.Domain.Interfaces;
 using Zooscape.Domain.Models;
+using Zooscape.Domain.Utilities;
 
 namespace Zooscape.Application;
 
@@ -22,36 +23,52 @@ public class WorkerService : BackgroundService
 {
     private readonly ILogger<WorkerService> _logger;
     private readonly GameSettings _gameSettings;
+    private readonly GameLogsConfiguration _gameLogsConfig;
+    private readonly GlobalSeededRandomizer _rng;
     private readonly IZookeeperService _zookeeperService;
     private readonly IGameStateService _gameStateService;
     private readonly IEventDispatcher _signalREventDispatcher;
     private readonly IEventDispatcher _cloudEventDispatcher;
     private readonly IEventDispatcher _logStateEventDispatcher;
+    private readonly IEventDispatcher _logDiffStateEventDispatcher;
     private readonly IHostApplicationLifetime _applicationLifetime;
 
     public WorkerService(
         ILogger<WorkerService> logger,
-        IOptions<GameSettings> options,
+        IOptions<GameSettings> gameSettingsOptions,
+        IOptions<GameLogsConfiguration> gameLogsConfigOptions,
+        GlobalSeededRandomizer rng,
         IZookeeperService zookeeperService,
         IGameStateService gameStateService,
         [FromKeyedServices("signalr")] IEventDispatcher signalREventDispatcher,
         [FromKeyedServices("cloud")] IEventDispatcher cloudEventDispatcher,
         [FromKeyedServices("logState")] IEventDispatcher logStateEventDispatcher,
+        [FromKeyedServices("logDiffState")] IEventDispatcher logDiffStateEventDispatcher,
         IHostApplicationLifetime applicationLifetime
     )
     {
         _logger = logger;
-        _gameSettings = options.Value;
+        _gameSettings = gameSettingsOptions.Value;
+        _gameLogsConfig = gameLogsConfigOptions.Value;
+        _rng = rng;
         _zookeeperService = zookeeperService;
         _gameStateService = gameStateService;
         _signalREventDispatcher = signalREventDispatcher;
         _cloudEventDispatcher = cloudEventDispatcher;
         _logStateEventDispatcher = logStateEventDispatcher;
+        _logDiffStateEventDispatcher = logDiffStateEventDispatcher;
         _applicationLifetime = applicationLifetime;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        _logger.LogInformation("Starting game engine with seed: {Seed}", _rng.Seed);
+        _logger.LogInformation(
+            "Map Size: {Width}x{Height}",
+            _gameStateService.World.Width,
+            _gameStateService.World.Height
+        );
+
         try
         {
             // Add one zookeeper to game world for a start
@@ -59,7 +76,7 @@ public class WorkerService : BackgroundService
 
             if (!await WaitForGameReady(stoppingToken))
             {
-                throw new Exception("Timed out waiting for game ready");
+                throw new TimeoutException("Timed out waiting for game ready");
             }
             await _cloudEventDispatcher.Dispatch(
                 new CloudCallbackEvent(CloudCallbackEventType.Started)
@@ -89,7 +106,13 @@ public class WorkerService : BackgroundService
             {
                 _logger.LogDebug("WorkerService stopped due to cancellation");
             }
-            await _logStateEventDispatcher.Dispatch(new CloseAndFlushLogsEvent());
+
+            if (_gameLogsConfig.FullLogsEnabled)
+                await _logStateEventDispatcher.Dispatch(new CloseAndFlushLogsEvent());
+
+            if (_gameLogsConfig.DiffLogsEnabled)
+                await _logDiffStateEventDispatcher.Dispatch(new CloseAndFlushLogsEvent());
+
             _applicationLifetime.StopApplication();
         }
     }
@@ -134,7 +157,11 @@ public class WorkerService : BackgroundService
 
             _gameStateService.TickCounter++;
 
-            await _logStateEventDispatcher.Dispatch(new GameStateEvent(_gameStateService));
+            if (_gameLogsConfig.FullLogsEnabled)
+                await _logStateEventDispatcher.Dispatch(new GameStateEvent(_gameStateService));
+
+            if (_gameLogsConfig.DiffLogsEnabled)
+                await _logDiffStateEventDispatcher.Dispatch(new GameStateEvent(_gameStateService));
 
             // Step 1: Pop first command off each animal's queue
             var commands = new List<AnimalCommand>();
@@ -184,9 +211,11 @@ public class WorkerService : BackgroundService
             foreach (var (id, zookeeper) in _gameStateService.Zookeepers)
             {
                 // Step 9: Calculate new direction
-                var newDirection = _zookeeperService.CalculateZookeeperDirection(
-                    _gameStateService.World,
-                    id
+                var newDirection = Helpers.TrackExecutionTime(
+                    "CalculateZookeeperDirection",
+                    () =>
+                        _zookeeperService.CalculateZookeeperDirection(_gameStateService.World, id),
+                    out var _
                 );
                 zookeeper.SetDirection(newDirection);
 
