@@ -27,6 +27,7 @@ public class Program
             Environment.GetEnvironmentVariable("BOT_NICKNAME")
             ?? Configuration.GetSection("BotNickname").Value;
 
+        // NOTE: DO NOT generate a random uuid in your own bot, make sure to only use the environment variable.
         var token = Environment.GetEnvironmentVariable("Token") ?? Guid.NewGuid().ToString();
 
         var port = Configuration.GetSection("RunnerPort");
@@ -85,7 +86,7 @@ public class Program
             if (
                 botCommand == null
                 || botCommand.Action < Enums.BotAction.Up
-                || botCommand.Action > Enums.BotAction.Right
+                || botCommand.Action > Enums.BotAction.UseItem
             )
             {
                 continue;

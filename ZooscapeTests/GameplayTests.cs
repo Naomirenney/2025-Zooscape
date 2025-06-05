@@ -5,19 +5,17 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
 using Xunit.Abstractions;
-using Zooscape.Application;
 using Zooscape.Application.Config;
-using Zooscape.Application.Events;
 using Zooscape.Application.Services;
 using Zooscape.Domain.Enums;
 using Zooscape.Domain.Models;
 using Zooscape.Domain.Utilities;
 using Zooscape.Domain.ValueObjects;
+using ZooscapeTests.Mocks;
 
 namespace ZooscapeTests;
 
@@ -43,6 +41,31 @@ public class GameplayTests
             NumberOfBots = testData.Input.AnimalIds.Length,
             PointsPerPellet = 10,
             ScoreLossPercentage = 50,
+            ScoreStreak =
+                testData.Input.ScoreStreak
+                ?? new Zooscape.Application.Config.ScoreStreak
+                {
+                    Max = 1,
+                    MultiplierGrowthFactor = 0,
+                    ResetGrace = 0,
+                },
+            PowerUps =
+                testData.Input.PowerUps
+                ?? new PowerUps
+                {
+                    Types = new Dictionary<string, PowerUpParameters>()
+                    {
+                        {
+                            "BigMooseJuice",
+                            new PowerUpParameters
+                            {
+                                RarityWeight = 4,
+                                Value = 3,
+                                Duration = 5,
+                            }
+                        },
+                    },
+                },
         };
 
         var logSettings = new GameLogsConfiguration
@@ -54,12 +77,18 @@ public class GameplayTests
 
         var gameSettingsOptions = Options.Create(gameSettings);
         var logSettingsOptions = Options.Create(logSettings);
+        var powerUpService = new TestMocks.MockPowerUpService();
+        var obstacleService = new TestMocks.MockObstacleService();
         var globalSeededRandomiser = new GlobalSeededRandomizer(1234);
+        var animalFactory = new AnimalFactory(gameSettingsOptions);
 
         var gameState = new GameStateService(
             gameSettingsOptions,
             NullLogger<GameStateService>.Instance,
-            new GlobalSeededRandomizer(1234)
+            powerUpService,
+            obstacleService,
+            animalFactory,
+            globalSeededRandomiser
         );
 
         foreach (var botId in testData.Input.AnimalIds)
@@ -178,6 +207,8 @@ public class GameplayTests
                     Zookeepers = Input.Zookeepers,
                     Ticks = Input.Ticks,
                     Actions = Input.Actions,
+                    ScoreStreak = Input.ScoreStreak,
+                    PowerUps = Input.PowerUps,
                 },
                 ExpectedState = ExpectedState,
             };
@@ -189,7 +220,10 @@ public class GameplayTests
         public Guid[] AnimalIds { get; set; }
         public int Zookeepers { get; set; }
         public int Ticks { get; set; }
+        public Zooscape.Application.Config.ScoreStreak ScoreStreak { get; set; }
         public Dictionary<int, List<BotActionTuple>> Actions { get; set; }
+
+        public PowerUps PowerUps { get; set; }
     }
 
     public class InputFromFile : Input
@@ -246,43 +280,5 @@ public class GameplayTests
 
         string json = File.ReadAllText(filePath);
         return JsonSerializer.Deserialize<T>(json, options)!;
-    }
-
-    public class MockSignalREventDispatcher(Action<int> action) : IEventDispatcher
-    {
-        private int tickCounter = 0;
-
-        public async Task Dispatch<TEvent>(TEvent gameEvent)
-            where TEvent : class
-        {
-            if (gameEvent is GameStateEvent)
-            {
-                action(++tickCounter);
-            }
-        }
-    }
-
-    public class MockLogStateEventDisptcher : IEventDispatcher
-    {
-        public Task Dispatch<TEvent>(TEvent gameEvent)
-            where TEvent : class
-        {
-            return Task.CompletedTask;
-        }
-    }
-
-    public class MockCloudEventDispatcher() : IEventDispatcher
-    {
-        public async Task Dispatch<TEvent>(TEvent gameEvent)
-            where TEvent : class { }
-    }
-
-    public class MockApplicationLifetime : IHostApplicationLifetime
-    {
-        public void StopApplication() { }
-
-        public CancellationToken ApplicationStarted { get; }
-        public CancellationToken ApplicationStopping { get; }
-        public CancellationToken ApplicationStopped { get; }
     }
 }

@@ -9,10 +9,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Extensions.Logging;
-using Zooscape.Application;
 using Zooscape.Application.Config;
 using Zooscape.Application.Events;
 using Zooscape.Application.Services;
+using Zooscape.Domain.Interfaces;
 using Zooscape.Domain.Utilities;
 using Zooscape.Infrastructure.CloudIntegration.Enums;
 using Zooscape.Infrastructure.CloudIntegration.Events;
@@ -90,6 +90,8 @@ try
                 services.AddKeyedSingleton<IEventDispatcher, LogDiffStateEventDispatcher>(
                     "logDiffState"
                 );
+                services.AddSingleton<IPowerUpService, PowerUpService>();
+                services.AddSingleton<IObstacleService, ObstacleService>();
 
                 S3.LogDirectory =
                     Environment.GetEnvironmentVariable("LOG_DIR")
@@ -118,6 +120,7 @@ try
                 services.AddSingleton<IZookeeperService, ZookeeperService>();
 
                 services.AddTransient<BotHub>();
+                services.AddTransient<IAnimalFactory, AnimalFactory>();
 
                 services.AddSingleton<IGameStateService, GameStateService>();
 

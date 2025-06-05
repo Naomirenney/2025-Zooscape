@@ -29,7 +29,15 @@ public class BotService
         var animal = gameStateDTO.Animals.First(bot => bot.Id == _botId);
 
         Console.Clear();
-        Console.WriteLine($"Score: {animal.Score}, Captured {animal.CapturedCounter} times");
+        Console.WriteLine(
+            $"Score: {animal.Score}, Held Power Up: {animal.HeldPowerUp} Captured {animal.CapturedCounter} times"
+        );
+
+        // Use power up
+        if (animal.HeldPowerUp != null)
+        {
+            return new BotCommand() { Action = BotAction.UseItem };
+        }
 
         var newDirection = CalculateBotDirection(gameStateDTO, animal);
         var command = new BotCommand { Action = (BotAction)newDirection };
@@ -44,7 +52,10 @@ public class BotService
             || HasReachedTarget(animal, _currentDestination)
         )
         {
-            _currentDestination = PickRandomTargetCell(gameState.Cells);
+            _currentDestination = PickRandomTargetCell(
+                gameState.Cells,
+                new GridCoords(animal.X, animal.Y)
+            );
             _ticksSinceRetarget = 0;
         }
 
@@ -84,8 +95,22 @@ public class BotService
         return AStar.PerformAStarSearch(grid, animalCoords, destinationCoords);
     }
 
-    private static Cell? PickRandomTargetCell(List<Cell> world)
+    private static Cell? PickRandomTargetCell(List<Cell> world, GridCoords animalLocation)
     {
+        List<CellContent> powerUpCells =
+        [
+            CellContent.Scavenger,
+            CellContent.PowerPellet,
+            CellContent.ChameleonCloak,
+            CellContent.BigMooseJuice,
+        ];
+        var cellsWithPowerUps = world.Where(cell => powerUpCells.Contains(cell.Content)).ToList();
+        if (cellsWithPowerUps.Count >= 1)
+        {
+            return cellsWithPowerUps
+                .OrderBy(cell => new GridCoords(cell.X, cell.Y).ManhattanDistance(animalLocation))
+                .First();
+        }
         var cellsWithPellet = world.Where(cell => cell.Content == CellContent.Pellet).ToList();
         if (cellsWithPellet.Count <= 0)
         {

@@ -24,9 +24,9 @@ if "%~1"=="--refbots" (
 ) else if "%~1"=="--seed" (
     set SEED=%~2
     shift
-) else if "%~1"=="--full_logs" (
+) else if "%~1"=="--full-logs" (
     set "FULL_LOGS=true"
-) else if "%~1"=="--diff_logs" (
+) else if "%~1"=="--diff-logs" (
     set "DIFF_LOGS=true"
 ) else (
     echo Unknown parameter: %~1

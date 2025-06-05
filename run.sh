@@ -17,8 +17,8 @@ while [[ "$#" -gt 0 ]]; do
         --tickduration) TICK_DURATION="$2"; shift ;;
         --map) WORLD_MAP="$2"; shift ;;
         --seed) SEED="$2"; shift ;;
-        --full_logs) FULL_LOGS=true ;;
-        --diff_logs) DIFF_LOGS=true ;;
+        --full-logs) FULL_LOGS=true ;;
+        --diff-logs) DIFF_LOGS=true ;;
         *) echo "Unknown parameter passed: $1"; exit 1 ;;
     esac
     shift

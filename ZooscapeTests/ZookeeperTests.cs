@@ -12,6 +12,7 @@ using Zooscape.Domain.ExtensionMethods;
 using Zooscape.Domain.Interfaces;
 using Zooscape.Domain.Models;
 using Zooscape.Domain.Utilities;
+using ZooscapeTests.Mocks;
 
 namespace ZooscapeTests;
 
@@ -31,10 +32,17 @@ public class ZookeeperTests
 
         _testOutputHelper = testOutputHelper;
         _zookeeperService = new ZookeeperService(options);
+        IPowerUpService powerUpService = new TestMocks.MockPowerUpService();
+        IObstacleService obstacleService = new TestMocks.MockObstacleService();
+        GlobalSeededRandomizer globalSeededRandomizer = new(1234);
+
         _gameStateService = new GameStateService(
             options,
             NullLogger<GameStateService>.Instance,
-            new GlobalSeededRandomizer(1234)
+            powerUpService,
+            obstacleService,
+            new MockAnimalFactory(),
+            globalSeededRandomizer
         );
 
         _gameStateService.AddZookeeper();
