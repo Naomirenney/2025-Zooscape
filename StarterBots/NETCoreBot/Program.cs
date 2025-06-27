@@ -26,7 +26,7 @@ public class Program
             Environment.GetEnvironmentVariable("BOT_NICKNAME")
             ?? Configuration.GetSection("BotNickname").Value;
 
-        var token = Environment.GetEnvironmentVariable("Token");
+        var token = Environment.GetEnvironmentVariable("Token") ?? Guid.NewGuid().ToString();
 
         var port = Configuration.GetSection("RunnerPort");
 
